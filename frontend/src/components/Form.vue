@@ -2,8 +2,12 @@
   <section>
     <fieldset class="fieldset">
       <legend><b>Patient Information</b></legend>
-      <form action="http://localhost:3000/NewRegistration" method="POST" enctype="multipart/form-data">
-        <div class="block-display">
+        <form
+          :action="backendUrl + '/NewRegistration'"
+          method="POST"
+          enctype="multipart/form-data"
+        >
+          <div class="block-display">
           <label for="Patientfirstname">Patient's first name</label>
           <input
             type="text"
@@ -82,7 +86,6 @@
             id="patient-scan"
             name="patient-scan"
             accept="image/*"
-            @change="handleFileUpload"
           >
         </div>
 
@@ -127,7 +130,6 @@
 </template>
 
 <script>
-import axios from 'axios'
 export default {
   name: 'PatientForm',
   data() {
@@ -143,32 +145,11 @@ export default {
         Gender: '',
         MedicalHistory: '',
         ScanFile: null
-      }
+      },
+      backendUrl: import.meta.env.VITE_BACKEND_URL
     }
   },
   methods: {
-   async submitForm() {
-  if (!this.NewPatient.FirstName || !this.NewPatient.LastName || !this.NewPatient.Age || !this.NewPatient.Phone) {
-    alert('Please fill in all required fields');
-    return;
-  }
-
-  try {
-    console.log('Submitting patient data:', this.NewPatient);
-
-    const response = await axios.post('http://localhost:3000/NewRegistration', this.NewPatient);
-
-    console.log('Patient registered successfully:', response.data);
-    alert('Patient registered successfully!');
-
-    this.resetForm();
-
-  } catch (error) {
-    console.error("Failed to register patient", error)
-    alert('Registration failed. Please try again.')
-  }
-},
-
     resetForm() {
       this.NewPatient = {
         FirstName: '',

@@ -133,7 +133,9 @@ export default {
     return {
       loginData: {
         lastName: '',
-        phone: ''
+        phone: '',
+        backendUrl: import.meta.env.VITE_BACKEND_URL
+
       },
       loggedInPatient: null,
       isLoading: false,
@@ -151,7 +153,7 @@ export default {
       this.clearNotifications()
 
       try {
-        const response = await axios.post('http://localhost:3000/patientlogin', {
+        const response = await axios.post(this.backendUrl+'/patientlogin', {
           LastName: this.loginData.lastName.trim(),
           Phone: this.loginData.phone.trim()
         })

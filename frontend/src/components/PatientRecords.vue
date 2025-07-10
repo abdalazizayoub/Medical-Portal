@@ -154,7 +154,9 @@ export default {
     return {
       patients: [],
       selectedPatient: null,
-      isLoading: false
+      isLoading: false,
+      backendUrl: import.meta.env.VITE_BACKEND_URL
+
     }
   },
   computed: {
@@ -177,7 +179,7 @@ export default {
     async GetPatients() {
       this.isLoading = true
       try {
-        const response = await axios.get('http://localhost:3000/patients')
+        const response = await axios.get( this.backendUrl + "/patients")
         this.patients = Array.isArray(response.data) ? response.data : []
       } catch (error) {
         console.error('Error fetching patients:', error)
@@ -205,7 +207,7 @@ export default {
           return
         }
 
-        const response = await axios.post(`http://localhost:3000/Classify/${patient._id}`)
+        const response = await axios.post(this.backendUrl+`/Classify/${patient._id}`)
 
         await this.GetPatients()
 
@@ -236,7 +238,7 @@ export default {
     async DeletePatient(index){
       try{
         const patient = this.patients[index]
-        const response = await axios.delete(`http://localhost:3000/delete/${patient._id}`)
+        const response = await axios.delete(this.backendUrl+`/delete/${patient._id}`)
         await this.GetPatients()
 
       }catch(error){
