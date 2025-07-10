@@ -1,4 +1,5 @@
 import os
+import dotenv
 import json
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,7 +8,6 @@ import torch.nn as nn
 import torchvision
 from PIL import Image
 from torch.nn.functional import softmax
-
 import uvicorn
 
 t = torchvision.transforms.Compose([
@@ -17,16 +17,20 @@ t = torchvision.transforms.Compose([
 ])
 
 app = FastAPI()
+dotenv.load_dotenv()
+backend = os.getenv("BACKEND_URL")
+frontend = os.getenv("FRONTEND_URL")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"], 
+    allow_origins=[backend,frontend], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 try:
-    model = torch.load(r"C:\Users\user\Desktop\web project\backend\brain ct scan model\resnet.pth", map_location=torch.device('cpu'), weights_only=False)
+    model = torch.load(r"resnet.pth", map_location=torch.device('cpu'), weights_only=False)
     model.eval()
     print("Model loaded successfully")
 except Exception as e:
