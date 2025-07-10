@@ -1,0 +1,211 @@
+header{
+    font-family: Garamond;
+    background-color: #2c3e50; 
+    color: white;
+    border: solid 1px #1a2530;
+    text-align: center;
+    border-radius: 3px;
+
+}
+body{
+    background-color: #f5f7fa;
+    
+}
+h2{
+    font-family: Garamond;
+  
+}
+nav  {
+    background-color: #67869b;
+    padding: 10px;
+    margin: 10px;
+    border-radius: 4px;
+    border-width: 100%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+}
+   
+nav ul {
+    list-style-type:none;
+    justify-content: center;
+    padding: 0%;
+    margin: 0%;
+    border: 10px;
+    border-radius: 10px;
+    display: flex;
+    gap: 30px;
+    align-items: center;
+    flex-wrap: wrap;
+    transition: background-color 0.2s ease;
+}
+
+nav a{
+    display:block;
+    text-decoration: none;
+    font-family: Garamond;
+    border-radius: 5px;
+    color: white;
+    transition: background-color 0.2s ease;
+   
+
+}
+nav ul li a:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+
+
+input[type="text"][type="number"]{
+    width: 100%;
+    padding: 12px 20px;
+    margin: 8px 0;
+    display: inline-block;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.fieldset{
+    margin: 10px;
+    border-radius:10px;
+    border-style: groove;
+    align-items: center;
+    background-color:#ecf0f1 ;
+
+
+}
+.table{
+  font-family: arial, sans-serif;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th{
+  background-color: #2c3e50;
+  border: 1px solid #dddddd;
+  text-align: left;
+  padding: 8px;
+  color: #f8f9fa;
+}
+td {
+  border: 1px solid #dddddd;
+  text-align: left;
+  padding: 8px;
+}
+legend{
+    font-family: Garamond;
+    background-color: #2c3e50;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 5px;
+    margin: 10px;
+}
+
+label{
+    padding: 8px;
+    margin: 10px;
+}
+input{
+    padding: 2px;
+    border: solid 1px #999;
+    border-radius: 4px;
+    margin-top: 8px;
+}
+input[type="file"]{
+    border:  ridge ;
+    width: 25%;
+    border-radius: 4px;
+    
+}
+select {
+    width: 25%;
+    border: ridge;
+    border-radius: 4px;
+    background-color: #f1f1f1;
+  }
+textarea{
+    padding: 2px;
+    border: solid 1px #999;
+    border-radius: 4px;
+    margin-left: 16px;
+}
+
+.textarea-label{
+    display: block;
+    margin-top:0 ;
+}
+.block-display{
+    display: block;
+}
+input,textarea:focus{
+    border-color: #2c3e50;
+    outline: none;
+    background-color: #f8f9fa;
+}
+button[type="submit"]{
+    padding:auto;
+    background-color: #2c3e50;
+    color:white;
+    border-radius: 5px;
+    transition: background-color 0.2 ease;
+}
+
+ 
+button:hover {
+    background-color: #E4EFE7;
+    color: black;
+}
+
+footer{
+    font-family: Garamond;
+    text-align: center;
+    font-size: small;
+    font-weight: 100 
+}
+
+
+@media (max-width: 768px) {
+    body {
+      font-size: 14px;
+      line-height: 1.4;
+      padding: 5px;
+    }
+    
+ 
+    nav ul {
+      flex-direction: column;
+      gap: 10px;
+    }
+    
+    nav a {
+      padding: 8px;
+      width: 100%;
+      text-align: center;
+    }
+    
+    input, select, textarea {
+      width: 100%;
+      margin: 5px 0;
+    }
+    
+    input[type="file"] {
+      width: 100%;
+    }
+    
+    .fieldset {
+      padding: 10px;
+      margin: 5px;
+    }
+    
+    label {
+      display: block;
+      margin: 5px 0;
+      padding: 5px;
+    }
+    
+    button[type="submit"] {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+    }
+  }
+  
