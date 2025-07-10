@@ -35,9 +35,6 @@
           <tbody>
             <tr v-for="(patient, index) in patients" :key="`patient-${index}`" class="patient-row">
               <td class="patient-id">{{ String(index + 1).padStart(3, '0') }}</td>
-              <!-- <td class="patient-name">
-                <strong>{{ patient.FirstName }} {{ patient.LastName }}</strong>
-              </td> -->
               <td>
                 <span class="gender-badge" :class="patient.Gender ? patient.Gender.toLowerCase() : 'unknown'">
                   {{ patient.Gender || 'N/A' }}
