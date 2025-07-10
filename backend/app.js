@@ -22,11 +22,11 @@ const io = new Server(server, {
   }
 });
 
-app.set("io", io); // Make Socket.IO accessible in routes
+app.set("io", io)
 
 // === Socket.IO Event Handlers ===
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
+  console.log('User connected:', socket.id)
 
   // Handle patient joining their specific room
   socket.on('joinPatientRoom', (patientId) => {
@@ -55,13 +55,13 @@ io.on('connection', (socket) => {
 });
 
 // === Keys and MongoDB Setup ===
-const encKey = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString('base64');
-const sigKey = process.env.SIGNING_KEY || crypto.randomBytes(64).toString('base64');
-const dbURI = process.env.DBURI;
+const encKey = process.env.ENCRYPTION_KEY 
+const sigKey = process.env.SIGNING_KEY 
+const dbURI = process.env.DBURI
 
 mongoose.connect(dbURI)
   .then(() => console.log("Connected to DB"))
-  .catch((err) => console.log("MongoDB error:", err));
+  .catch((err) => console.log("MongoDB error:", err))
 
 // === Middleware ===
 app.use(cors({
@@ -162,7 +162,6 @@ app.post("/NewRegistration", upload.single("patient-scan"), async (req, res) => 
 
     const savedPatient = await newPatient.save();
 
-    // Emit event via socket to all connected clients
     const io = req.app.get("io");
     io.emit("newPatient", {
       id: savedPatient._id,
@@ -203,14 +202,12 @@ app.post("/Classify/:id", async (req, res) => {
 
     const io = req.app.get("io");
     
-    // Emit to all connected clients
     io.emit("classificationDone", {
       id: patient._id,
       prediction: response.data.prediction,
       confidence: response.data.confidence
-    });
+    })
 
-    // Emit specifically to the patient's room
     io.to(`patient_${patient._id}`).emit("resultsReady", {
       id: patient._id,
       prediction: response.data.prediction,
@@ -236,48 +233,7 @@ app.post("/Classify/:id", async (req, res) => {
 
     res.status(status).json({ error: message, details: error.message });
   }
-});
-
-// Update patient
-app.put("/patient/update/:id", async (req, res) => {
-  const id = req.params.id;
-  const UpdatedData = req.body;
-
-  if (!UpdatedData.FirstName || !UpdatedData.LastName || !UpdatedData.Age || !UpdatedData.Phone) {
-    return res.status(400).json({ error: "Missing Required Fields" });
-  }
-
-  try {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ error: "Invalid patient ID format" });
-    }
-
-    const updatedPatient = await Patients.findByIdAndUpdate(id, UpdatedData, {
-      new: true,
-      runValidators: true
-    });
-
-    if (!updatedPatient) return res.status(404).json({ error: "Patient not found" });
-
-    // Emit patient update event
-    const io = req.app.get("io");
-    io.emit("patientUpdated", {
-      id: updatedPatient._id,
-      patient: updatedPatient
-    });
-
-    // Notify specific patient
-    io.to(`patient_${updatedPatient._id}`).emit("profileUpdated", {
-      patient: updatedPatient,
-      message: "Your profile has been updated."
-    });
-
-    res.json({ patient: updatedPatient, message: "Patient updated successfully" });
-  } catch (error) {
-    console.error('Error updating patient:', error);
-    res.status(500).json({ error: "Failed to update patient", details: error.message });
-  }
-});
+})
 
 // Delete patient
 app.delete("/delete/:id", async (req, res) => {

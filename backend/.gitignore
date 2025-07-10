@@ -32,7 +32,7 @@ coverage
 # Node modules
 **/node_modules
 **/dist
-
+**/scans
 # Logs
 *.log
 
