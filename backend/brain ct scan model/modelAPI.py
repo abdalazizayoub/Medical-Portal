@@ -96,12 +96,6 @@ async def classify(filepath: str):
 async def root():
     return {"message": "Brain Tumor Classification API is running"}
 
-@app.get("/health")
-async def health_check():
-    return {
-        "status": "healthy",
-        "model_loaded": model is not None
-    }
-
+    
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
