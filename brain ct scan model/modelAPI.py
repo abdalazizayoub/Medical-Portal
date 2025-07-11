@@ -1,6 +1,6 @@
 import os
 import json
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException ,  File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 import torch
 import torch.nn as nn
@@ -9,6 +9,7 @@ from PIL import Image
 from torch.nn.functional import softmax
 import dotenv
 import uvicorn
+import io
 
 
 dotenv.load_dotenv()
@@ -37,17 +38,16 @@ except Exception as e:
     model = None
 
 @app.post("/predict")
-async def classify(filepath: str):
-    print(filepath)
+async def classify(file :UploadFile= File(...)):
+    print(f"Received file: {file.filename}")
       
     try:
         if model is None:
             raise HTTPException(status_code=500, detail="Model not loaded")
-        
-        if not os.path.exists(filepath):
-            raise HTTPException(status_code=400, detail="File path does not exist")
+    
         try:
-            image = Image.open(filepath).convert("RGB")
+            image_data = await file.read()
+            image = Image.open(io.BytesIO(image_data)).convert("RGB")
         except Exception as e:
             raise HTTPException(
                 status_code=400, 

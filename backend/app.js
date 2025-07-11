@@ -9,7 +9,8 @@ const cors = require('cors');
 const crypto = require('crypto');
 const axios = require('axios');
 require('dotenv').config();
-
+const FormData = require('form-data')
+const fs = require('fs')
 const app = express();
 const http = require('http');
 const server = http.createServer(app);
@@ -128,7 +129,7 @@ PatientsSchema.plugin(encrypt, {
 
 const Patients = mongoose.model("patient", PatientsSchema);
 
-// === Routes ===
+// === endpoints ===
 
 // Get all patients
 app.get("/patients", async (req, res) => {
@@ -190,10 +191,15 @@ app.post("/Classify/:id", async (req, res) => {
       return res.status(400).json({ error: "No valid Brain CT scan available" });
     }
 
-    const normalizedPath = patient.Scan.replace(/\\/g, '/');
+    const formData = new FormData();
+    formData.append('file', fs.createReadStream(patient.Scan));
 
-    const response = await axios.post(process.env.MODEL_API, null, {
-      params: { filepath: normalizedPath }
+    const response = await axios.post(process.env.MODEL_API, formData, {
+      headers: {
+        ...formData.getHeaders(),
+        'Content-Type': 'multipart/form-data'
+      },
+      timeout: 30000 // 30 second timeout
     });
 
     patient.ClassificationResult = response.data.prediction;
@@ -229,11 +235,15 @@ app.post("/Classify/:id", async (req, res) => {
     if (error.response) {
       status = error.response.status;
       message = error.response.data.detail || error.response.statusText;
+    } else if (error.code === 'ECONNREFUSED') {
+      message = 'Unable to connect to model API service';
+    } else if (error.code === 'ENOENT') {
+      message = 'Scan file not found';
     }
 
     res.status(status).json({ error: message, details: error.message });
   }
-})
+})  
 
 // Delete patient
 app.delete("/delete/:id", async (req, res) => {
