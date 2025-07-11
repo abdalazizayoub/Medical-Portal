@@ -77,9 +77,18 @@
                   View Details
                 </button>
                 <button
+                  v-if="hasScan(patient)"
+                  type="button"
+                  @click="viewScan(patient._id)"
+                  class="view-scan-btn"
+                  :title="`View scan for ${patient.FirstName} ${patient.LastName}`"
+                >
+                  View Scan
+                </button>
+                <button
                   type="button"
                   @click="DeletePatient(index)"
-                  class="view-details-btn"
+                  class="delete-btn"
                 >
                   Delete Patient
                 </button>
@@ -97,7 +106,7 @@
         </table>
       </div>
 
-
+      <!-- Patient Details Modal -->
       <div v-if="selectedPatient" class="modal-overlay" @click="closeModal">
         <div class="modal-content" @click.stop>
           <div class="modal-header">
@@ -138,13 +147,45 @@
           </div>
         </div>
       </div>
+
+      <!-- Scan Viewer Modal -->
+      <div v-if="showScanModal" class="modal-overlay" @click="closeScanModal">
+        <div class="scan-modal-content" @click.stop>
+          <div class="modal-header">
+            <h3>Patient Scan</h3>
+            <button @click="closeScanModal" class="close-btn">&times;</button>
+          </div>
+          <div class="scan-modal-body">
+            <div v-if="scanLoading" class="scan-loading">
+              <p>Loading scan...</p>
+              <div class="loading-spinner"></div>
+            </div>
+            <div v-else-if="scanError" class="scan-error">
+              <p>Error loading scan: {{ scanError }}</p>
+              <button @click="retryScanLoad" class="retry-btn">Retry</button>
+            </div>
+            <div v-else class="scan-container">
+              <img
+                :src="scanImageUrl"
+                :alt="'Scan for patient ' + currentScanPatientId"
+                class="scan-image"
+                @error="handleScanError"
+              />
+              <div class="scan-actions">
+                <button @click="downloadScan" class="download-btn">
+                  📥 Download Scan
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </fieldset>
   </section>
 </template>
 
 <script>
 import axios from 'axios'
-
 export default {
   name: 'PatientRecords',
   data() {
@@ -152,8 +193,12 @@ export default {
       patients: [],
       selectedPatient: null,
       isLoading: false,
-      backendUrl: import.meta.env.VITE_BACKEND_URL
-
+      backendUrl: import.meta.env.VITE_BACKEND_URL,
+      showScanModal: false,
+      scanImageUrl: '',
+      scanLoading: false,
+      scanError: null,
+      currentScanPatientId: null
     }
   },
   computed: {
@@ -194,6 +239,58 @@ export default {
               patient.ClassificationResult === 'Pending'))
     },
 
+    hasScan(patient) {
+      return patient.ScanMetadata && patient.ScanMetadata.hasFile
+    },
+
+    async viewScan(patientId) {
+      this.showScanModal = true
+      this.scanLoading = true
+      this.scanError = null
+      this.currentScanPatientId = patientId
+      this.scanImageUrl = ''
+
+      try {
+        const scanUrl = `${this.backendUrl}/scan/${patientId}`
+        await axios.head(scanUrl)
+        this.scanImageUrl = scanUrl
+
+      } catch (error) {
+        console.error('Error loading scan:', error)
+        this.scanError = error.response?.data?.error || 'Failed to load scan'
+      } finally {
+        this.scanLoading = false
+      }
+    },
+
+    closeScanModal() {
+      this.showScanModal = false
+      this.scanImageUrl = ''
+      this.scanError = null
+      this.currentScanPatientId = null
+    },
+
+    handleScanError() {
+      this.scanError = 'Failed to display scan image'
+    },
+
+    retryScanLoad() {
+      if (this.currentScanPatientId) {
+        this.viewScan(this.currentScanPatientId)
+      }
+    },
+
+    downloadScan() {
+      if (this.scanImageUrl) {
+        const link = document.createElement('a')
+        link.href = this.scanImageUrl
+        link.download = `patient-${this.currentScanPatientId}-scan.jpg`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      }
+    },
+
     async classifyScan(index) {
       this.isLoading = true
       try {
@@ -232,6 +329,7 @@ export default {
     closeModal() {
       this.selectedPatient = null
     },
+
     async DeletePatient(index){
       try{
         const patient = this.patients[index]
@@ -288,6 +386,7 @@ export default {
   }
 }
 </script>
+
 <style scoped>
 .fieldset {
   border: 2px solid #2c3e50;
@@ -437,8 +536,9 @@ legend {
   white-space: nowrap;
 }
 
-.send-results-btn,
-.view-details-btn {
+.view-details-btn,
+.view-scan-btn,
+.delete-btn {
   padding: 6px 12px;
   margin: 2px;
   border: none;
@@ -450,16 +550,6 @@ legend {
   font-family: Garamond;
 }
 
-.send-results-btn {
-  background-color: #2c3e50;
-  color: white;
-}
-
-.send-results-btn:hover {
-  background-color: #E4EFE7;
-  color: black;
-}
-
 .view-details-btn {
   background-color: #67869b;
   color: white;
@@ -468,6 +558,24 @@ legend {
 .view-details-btn:hover {
   background-color: #E4EFE7;
   color: black;
+}
+
+.view-scan-btn {
+  background-color: #28a745;
+  color: white;
+}
+
+.view-scan-btn:hover {
+  background-color: #218838;
+}
+
+.delete-btn {
+  background-color: #dc3545;
+  color: white;
+}
+
+.delete-btn:hover {
+  background-color: #c82333;
 }
 
 .no-data-row {
@@ -509,7 +617,6 @@ legend {
   color: black;
 }
 
-
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -529,6 +636,16 @@ legend {
   max-width: 600px;
   width: 90%;
   max-height: 80vh;
+  overflow-y: auto;
+  border: 1px solid #2c3e50;
+}
+
+.scan-modal-content {
+  background: white;
+  border-radius: 8px;
+  max-width: 90%;
+  width: 800px;
+  max-height: 90vh;
   overflow-y: auto;
   border: 1px solid #2c3e50;
 }
@@ -569,6 +686,13 @@ legend {
   font-family: Garamond;
 }
 
+.scan-modal-body {
+  padding: 20px;
+  background-color: #f5f7fa;
+  font-family: Garamond;
+  text-align: center;
+}
+
 .detail-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -597,40 +721,103 @@ legend {
   font-family: Garamond;
 }
 
+.scan-loading {
+  padding: 40px;
+  text-align: center;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #2c3e50;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 20px auto;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.scan-error {
+  padding: 40px;
+  text-align: center;
+  color: #dc3545;
+}
+
+.retry-btn {
+  background-color: #2c3e50;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: Garamond;
+  margin-top: 15px;
+}
+
+.retry-btn:hover {
+  background-color: #1a2530;
+}
+
+.scan-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.scan-image {
+  max-width: 100%;
+  max-height: 70vh;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border: 2px solid #2c3e50;
+}
+
+.scan-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.download-btn {
+  background-color: #28a745;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: Garamond;
+  transition: background-color 0.3s;
+}
+
+.download-btn:hover {
+  background-color: #218838;
+}
 
 .classify-btn {
   padding: 6px 12px;
-  background-color: #4CAF50;
+  background-color: #2196F3;
   color: white;
   border: none;
   border-radius: 4px;
   cursor: pointer;
   font-family: Garamond;
   margin-right: 5px;
+  transition: all 0.3s;
 }
 
 .classify-btn:hover:not(:disabled) {
-  background-color: #45a049;
+  background-color: #0b7dda;
 }
 
 .classify-btn:disabled {
   background-color: #cccccc;
   cursor: not-allowed;
+  opacity: 0.7;
 }
-
-.scan-result {
-  padding: 4px 8px;
-  background-color: #2196F3;
-  color: white;
-  border-radius: 4px;
-  font-weight: bold;
-}
-
-.no-result {
-  color: #888;
-  font-style: italic;
-}
-
 
 .scan-result {
   padding: 4px 8px;
@@ -666,28 +853,6 @@ legend {
   font-style: italic;
 }
 
-.classify-btn {
-  padding: 6px 12px;
-  background-color: #2196F3;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-family: Garamond;
-  margin-right: 5px;
-  transition: all 0.3s;
-}
-
-.classify-btn:hover:not(:disabled) {
-  background-color: #0b7dda;
-}
-
-.classify-btn:disabled {
-  background-color: #cccccc;
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
 @media (max-width: 768px) {
   .summary-stats {
     grid-template-columns: 1fr;
@@ -717,11 +882,21 @@ legend {
     margin: 5px;
   }
 
-  .send-results-btn,
-  .view-details-btn {
+  .view-details-btn,
+  .view-scan-btn,
+  .delete-btn {
     width: 100%;
-    padding: 10px;
-    margin-top: 5px;
+    padding: 8px;
+    margin: 2px 0;
+  }
+
+  .scan-modal-content {
+    width: 95%;
+    max-height: 95vh;
+  }
+
+  .scan-image {
+    max-height: 50vh;
   }
 }
 </style>

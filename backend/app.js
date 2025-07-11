@@ -9,8 +9,7 @@ const cors = require('cors');
 const crypto = require('crypto');
 const axios = require('axios');
 require('dotenv').config();
-const FormData = require('form-data')
-const fs = require('fs')
+const FormData = require('form-data');
 const app = express();
 const http = require('http');
 const server = http.createServer(app);
@@ -23,11 +22,11 @@ const io = new Server(server, {
   }
 });
 
-app.set("io", io)
+app.set("io", io);
 
 // === Socket.IO Event Handlers ===
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.id)
+  console.log('User connected:', socket.id);
 
   // Handle patient joining their specific room
   socket.on('joinPatientRoom', (patientId) => {
@@ -56,13 +55,13 @@ io.on('connection', (socket) => {
 });
 
 // === Keys and MongoDB Setup ===
-const encKey = process.env.ENCRYPTION_KEY 
-const sigKey = process.env.SIGNING_KEY 
-const dbURI = process.env.DBURI
+const encKey = process.env.ENCRYPTION_KEY;
+const sigKey = process.env.SIGNING_KEY;
+const dbURI = process.env.DBURI;
 
 mongoose.connect(dbURI)
   .then(() => console.log("Connected to DB"))
-  .catch((err) => console.log("MongoDB error:", err))
+  .catch((err) => console.log("MongoDB error:", err));
 
 // === Middleware ===
 app.use(cors({
@@ -75,17 +74,22 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
-// === Multer for Scan Uploads ===
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, path.join(__dirname, 'scans'));
+// === Multer for Memory Storage ===
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
   },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  fileFilter: (req, file, cb) => {
+    // Accept only image files
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'));
+    }
   }
 });
-const upload = multer({ storage });
 
 // === Patient Schema ===
 const Schema = mongoose.Schema;
@@ -110,7 +114,13 @@ const PatientsSchema = new Schema({
     }
   },
   ScanType: { type: String, required: true },
-  Scan: { type: String, unique: true, sparse: true },
+  ScanMetadata: {
+    hasFile: { type: Boolean, default: false },
+    filename: String,
+    mimetype: String,
+    size: Number,
+    uploadDate: { type: Date, default: Date.now }
+  },
   Gender: { type: String, enum: ['Male', 'Female'] },
   MedicalHistory: { type: String, default: '' },
   ClassificationResult: {
@@ -129,7 +139,10 @@ PatientsSchema.plugin(encrypt, {
 
 const Patients = mongoose.model("patient", PatientsSchema);
 
-// === endpoints ===
+// === In-memory file storage ===
+const fileStorage = new Map();
+
+// === Endpoints ===
 
 // Get all patients
 app.get("/patients", async (req, res) => {
@@ -148,6 +161,14 @@ app.post("/NewRegistration", upload.single("patient-scan"), async (req, res) => 
   const scan = req.file;
 
   try {
+    const scanMetadata = scan ? {
+      hasFile: true,
+      filename: scan.originalname,
+      mimetype: scan.mimetype,
+      size: scan.size,
+      uploadDate: new Date()
+    } : { hasFile: false };
+
     const newPatient = new Patients({
       FirstName: body.Patientfirstname,
       LastName: body.Patientlastname,
@@ -156,12 +177,20 @@ app.post("/NewRegistration", upload.single("patient-scan"), async (req, res) => 
       AppointmentDate: body.patientappointmentdate,
       AppointmentTime: body.patientappointmenttime,
       ScanType: body.Patientscanoption,
-      Scan: scan ? scan.path : undefined,
+      ScanMetadata: scanMetadata,
       Gender: body.gender,
       MedicalHistory: body.patientmedicalhistory
     });
 
     const savedPatient = await newPatient.save();
+
+    if (scan) {
+      fileStorage.set(savedPatient._id.toString(), {
+        buffer: scan.buffer,
+        mimetype: scan.mimetype,
+        originalname: scan.originalname
+      });
+    }
 
     const io = req.app.get("io");
     io.emit("newPatient", {
@@ -187,12 +216,21 @@ app.post("/Classify/:id", async (req, res) => {
   try {
     const patient = await Patients.findById(patientID);
     if (!patient) return res.status(404).json({ error: "Patient not found" });
-    if (!patient.Scan || patient.ScanType !== "Brain-ct") {
+    
+    if (!patient.ScanMetadata.hasFile || patient.ScanType !== "Brain-ct") {
       return res.status(400).json({ error: "No valid Brain CT scan available" });
     }
 
+    const fileData = fileStorage.get(patientID);
+    if (!fileData) {
+      return res.status(404).json({ error: "Scan file not found in memory" });
+    }
+
     const formData = new FormData();
-    formData.append('file', fs.createReadStream(patient.Scan));
+    formData.append('file', fileData.buffer, {
+      filename: fileData.originalname,
+      contentType: fileData.mimetype
+    });
 
     const response = await axios.post(process.env.MODEL_API, formData, {
       headers: {
@@ -212,7 +250,7 @@ app.post("/Classify/:id", async (req, res) => {
       id: patient._id,
       prediction: response.data.prediction,
       confidence: response.data.confidence
-    })
+    });
 
     io.to(`patient_${patient._id}`).emit("resultsReady", {
       id: patient._id,
@@ -237,13 +275,11 @@ app.post("/Classify/:id", async (req, res) => {
       message = error.response.data.detail || error.response.statusText;
     } else if (error.code === 'ECONNREFUSED') {
       message = 'Unable to connect to model API service';
-    } else if (error.code === 'ENOENT') {
-      message = 'Scan file not found';
     }
 
     res.status(status).json({ error: message, details: error.message });
   }
-})  
+});
 
 // Delete patient
 app.delete("/delete/:id", async (req, res) => {
@@ -257,6 +293,8 @@ app.delete("/delete/:id", async (req, res) => {
     const deletedPatient = await Patients.findByIdAndDelete(id);
 
     if (!deletedPatient) return res.status(404).json({ error: "Patient not found" });
+
+    fileStorage.delete(id);
 
     // Emit patient deletion event
     const io = req.app.get("io");
@@ -279,7 +317,7 @@ app.post("/patientlogin", async (req, res) => {
     const possiblepatient = await Patients.findOne({
       LastName: { $regex: new RegExp(`^${LastName}$`, 'i') },
       Phone: Phone
-    })
+    });
     if (!possiblepatient) {
       return res.status(404).json({ error: "Patient not found with provided credentials" });
     }
@@ -288,6 +326,32 @@ app.post("/patientlogin", async (req, res) => {
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ error: "Internal server error" });
+  }
+})
+
+// Optional: Endpoint to get scan image (for viewing purposes)
+app.get("/scan/:id", async (req, res) => {
+  const patientID = req.params.id;
+
+  try {
+    const patient = await Patients.findById(patientID);
+    if (!patient || !patient.ScanMetadata.hasFile) {
+      return res.status(404).json({ error: "Scan not found" });
+    }
+
+    const fileData = fileStorage.get(patientID);
+    if (!fileData) {
+      return res.status(404).json({ error: "Scan file not found in memory" });
+    }
+
+    res.set({
+      'Content-Type': fileData.mimetype,
+      'Content-Length': fileData.buffer.length
+    });
+    res.send(fileData.buffer);
+  } catch (error) {
+    console.error('Error retrieving scan:', error);
+    res.status(500).json({ error: "Failed to retrieve scan" });
   }
 });
 
