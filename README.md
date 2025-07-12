@@ -1,6 +1,6 @@
 Brain Tumor Classification System
 
-A comprehensive medical imaging system that uses deep learning to classify brain CT scans for tumor detection. The system provides real-time patient management, secure data handling, and automated classification results.
+A medical imaging system that uses deep learning to classify brain CT scans for tumor detection. The system provides real-time patient management, secure data handling, and automated classification results.
 Project Overview:
 
 This system combines a web-based patient management interface with an AI-powered brain tumor classification service. Healthcare professionals can register patients, upload CT scans, and receive automated classification results indicating whether a tumor is present or if the brain appears healthy.
